@@ -4,10 +4,13 @@ Interfaz de terminal (TUI) para [GitHub CLI](https://cli.github.com), hecha con 
 
 Permite, sin salir de la terminal:
 
-- **Cuenta:** ver el estado de sesión, login y logout.
-- **Repos:** listar, filtrar, clonar y abrir en el navegador.
-- **Pull requests:** listar con estado de CI y review, ver detalle y diff, aprobar y hacer merge (squash / merge / rebase).
-- **Pipelines (Actions):** listar runs, ver detalle, logs (completos o solo los fallidos) y relanzar.
+- **Cuenta:** ver el estado de sesión, login, logout y cambiar entre cuentas.
+- **Repos:** listar, filtrar, clonar, abrir en el navegador, crear (con README, `.gitignore`, licencia y clonado opcional), renombrar, archivar, cambiar visibilidad o descripción y borrar.
+- **Pull requests:** listar con estado de CI y review, ver detalle y diff, crear, aprobar (con comentario), pedir cambios, comentar, alternar borrador/listo y hacer merge (squash / merge / rebase).
+- **Pipelines (Actions):** listar runs, ver detalle, logs (completos o solo los fallidos), relanzar, cancelar y lanzar un workflow a mano.
+- **Releases:** listar, ver, crear (con notas automáticas si las dejas vacías) y borrar.
+- **Notificaciones:** ver la bandeja y marcar como leídas.
+- **Búsqueda global:** repos, issues, PRs y código.
 
 ## Requisitos
 
@@ -43,23 +46,44 @@ Si lo lanzas dentro de un repositorio git, ese repo queda seleccionado para las 
 
 ### Atajos
 
+Muchas teclas dependen de la pestaña activa.
+
 | Tecla | Acción |
 |---|---|
-| `1` `2` `3` `4` | Cuenta / Repos / PRs / Pipelines |
+| `1`–`6` | Cuenta / Repos / PRs / Pipelines / Releases / Notifs |
 | `r` | Refrescar (fuerza consulta a GitHub, ignorando la caché) |
 | `/` | Filtrar la tabla actual |
-| `Enter` | Repos: seleccionar repo · PRs / Runs: ver detalle |
+| `S` | Buscar en GitHub (repos, issues, PRs o código) |
+| `Enter` | Repos: seleccionar repo · PRs / Runs / Releases: ver detalle · Notifs: marcar leída |
+| `n` | Crear: repo, PR o release según la pestaña |
 | `c` | Repos: clonar |
 | `o` | Repos: abrir en navegador · Cuenta: logout |
-| `a` | PRs: aprobar |
-| `m` | PRs: merge |
+| `D` | Repos / Releases: borrar |
+| `A` | Repos: archivar o desarchivar |
+| `N` | Repos: renombrar |
+| `v` | Repos: cambiar visibilidad |
+| `E` | Repos: editar descripción |
+| `a` | PRs: aprobar (con comentario opcional) |
+| `x` | PRs: pedir cambios · Pipelines: cancelar run |
+| `C` | PRs: comentar |
+| `t` | PRs: alternar borrador / listo para revisión |
+| `m` | PRs: merge · Notifs: marcar leída |
+| `M` | Notifs: marcar todas como leídas |
 | `d` | PRs: ver diff |
 | `l` | Cuenta: login · Pipelines: logs |
+| `s` | Cuenta: cambiar de cuenta |
 | `f` | Pipelines: solo logs fallidos |
 | `R` | Pipelines: relanzar run |
+| `w` | Pipelines: lanzar workflow |
 | `Esc` / `q` | Cerrar visor o modal · `q` en la pantalla principal sale |
 
-Las acciones que modifican algo (aprobar, merge, rerun, logout) piden confirmación.
+Las acciones que modifican algo piden confirmación. Borrar un repo pide además escribir su nombre completo.
+
+### Permisos de `gh`
+
+Borrar repos necesita el scope `delete_repo` (`gh auth refresh -s delete_repo`) y las notificaciones el scope `notifications`. Si falta alguno, `gh` devuelve el error y se muestra en un aviso.
+
+Al crear un PR, la rama origen se rellena con la rama git del directorio desde donde lanzaste `ghtui`. Si marcas «clonar» al crear un repo, se clona en ese mismo directorio.
 
 ### Configuración
 
@@ -68,7 +92,7 @@ Las acciones que modifican algo (aprobar, merge, rerun, logout) piden confirmaci
 
 ### Listados completos y caché
 
-Repos, PRs y pipelines se listan completos (sin límite fijo). Los resultados se guardan en
+Repos, PRs, pipelines y releases se listan completos (sin límite fijo). Los resultados se guardan en
 `~/.cache/ghtui` (o `$XDG_CACHE_HOME/ghtui`): al abrir se muestra lo cacheado al instante y,
 si está vencido, se actualiza en segundo plano. Si falla la red, se conservan los datos cacheados.
 
