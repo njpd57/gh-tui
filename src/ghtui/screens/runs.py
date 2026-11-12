@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from .. import gh
 from .base import TablePane
-from .modals import ConfirmModal, TextViewer
+from .modals import ChoiceModal, ConfirmModal, InputModal, TextViewer
 
 
 class RunsPane(TablePane):
@@ -68,6 +68,47 @@ class RunsPane(TablePane):
                 self.run_worker(self._rerun(*s))
 
         self.app.push_screen(ConfirmModal(f"¿Relanzar run {s[1]}?"), done)
+
+    def cancel(self) -> None:
+        s = self._sel()
+        if not s:
+            return
+
+        def done(ok: bool | None) -> None:
+            if ok:
+                self.run_worker(self._act(gh.run_cancel(*s), f"Run {s[1]} cancelado", reload=True))
+
+        self.app.push_screen(ConfirmModal(f"¿Cancelar run {s[1]}?"), done)
+
+    def dispatch_workflow(self) -> None:
+        if self.repo:
+            self.run_worker(self._dispatch(self.repo))
+
+    async def _dispatch(self, repo: str) -> None:
+        try:
+            wfs = [w for w in await gh.workflow_list(repo) if w.get("state") == "active"]
+        except gh.GhError as e:
+            self.app.notify(str(e), severity="error", timeout=8)
+            return
+        if not wfs:
+            self.app.notify("No hay workflows activos en este repo", severity="warning")
+            return
+        names = [w["name"] for w in wfs]
+
+        def chosen(name: str | None) -> None:
+            if not name:
+                return
+            wf = wfs[names.index(name)]
+
+            def with_ref(ref: str | None) -> None:
+                if ref is not None:
+                    self.run_worker(self._act(
+                        gh.workflow_run(repo, str(wf["id"]), ref), f"Workflow «{name}» lanzado", reload=True))
+
+            self.app.push_screen(
+                InputModal(f"Rama o tag para «{name}» (vacío = rama por defecto):", allow_empty=True), with_ref)
+
+        self.app.push_screen(ChoiceModal("Workflow a lanzar", names), chosen)
 
     async def _rerun(self, repo: str, rid: int) -> None:
         try:

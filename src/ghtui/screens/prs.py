@@ -1,8 +1,23 @@
 from __future__ import annotations
 
+import asyncio
+
 from .. import gh
 from .base import TablePane
-from .modals import ChoiceModal, ConfirmModal, TextViewer
+from .modals import ChoiceModal, ConfirmModal, CreatePRModal, InputModal, TextViewer
+
+
+async def _current_branch() -> str:
+    """Rama git del directorio actual ('' si no es un repo o está en HEAD desacoplado)."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "git", "rev-parse", "--abbrev-ref", "HEAD",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+        out, _ = await proc.communicate()
+    except OSError:
+        return ""
+    branch = out.decode().strip() if proc.returncode == 0 else ""
+    return "" if branch == "HEAD" else branch
 
 
 class PRsPane(TablePane):
@@ -55,13 +70,57 @@ class PRsPane(TablePane):
 
     def approve(self) -> None:
         def go(repo: str, n: int) -> None:
+            def body(text: str | None) -> None:
+                if text is not None:
+                    self.run_worker(self._act(gh.pr_approve(repo, n, text), f"PR #{n} aprobado"))
+
             def done(ok: bool | None) -> None:
                 if ok:
-                    self.run_worker(self._act(gh.pr_approve(repo, n), f"PR #{n} aprobado"))
+                    self.app.push_screen(
+                        InputModal("Comentario de la aprobación (Enter vacío = sin comentario):", allow_empty=True), body)
 
             self.app.push_screen(ConfirmModal(f"¿Aprobar {repo}#{n}?"), done)
 
         self._with_selected(go)
+
+    def _ask_and_do(self, prompt: str, fn, ok_msg: str) -> None:
+        def go(repo: str, n: int) -> None:
+            def done(text: str | None) -> None:
+                if text:
+                    self.run_worker(self._act(fn(repo, n, text), ok_msg.format(n=n), reload=True))
+
+            self.app.push_screen(InputModal(prompt.format(repo=repo, n=n)), done)
+
+        self._with_selected(go)
+
+    def request_changes(self) -> None:
+        self._ask_and_do("Pedir cambios en {repo}#{n} — motivo:", gh.pr_request_changes, "Cambios solicitados en #{n}")
+
+    def comment(self) -> None:
+        self._ask_and_do("Comentario para {repo}#{n}:", gh.pr_comment, "Comentario añadido a #{n}")
+
+    def toggle_draft(self) -> None:
+        p = self.selected()
+        if not p or not self.repo:
+            return
+        repo, n, is_draft = self.repo, p["number"], bool(p.get("isDraft"))
+        msg = f"PR #{n} listo para revisión" if is_draft else f"PR #{n} vuelto a borrador"
+        self.run_worker(self._act(gh.pr_ready(repo, n, ready=is_draft), msg, reload=True))
+
+    def create_pr(self) -> None:
+        if not self.repo:
+            self.app.notify("Selecciona un repo primero", severity="warning")
+            return
+        self.run_worker(self._create_pr(self.repo))
+
+    async def _create_pr(self, repo: str) -> None:
+        branch = await _current_branch()
+
+        def done(data: dict | None) -> None:
+            if data:
+                self.run_worker(self._act(gh.pr_create(repo, **data), "PR creado", reload=True))
+
+        self.app.push_screen(CreatePRModal(repo, branch), done)
 
     def merge(self) -> None:
         def go(repo: str, n: int) -> None:
@@ -78,13 +137,3 @@ class PRsPane(TablePane):
             self.app.push_screen(ChoiceModal("Método de merge", ["squash", "merge", "rebase"]), chosen)
 
         self._with_selected(go)
-
-    async def _act(self, coro, ok_msg: str, reload: bool = False) -> None:
-        try:
-            await coro
-            self.app.notify(ok_msg)
-        except gh.GhError as e:
-            self.app.notify(str(e), severity="error", timeout=10)
-            return
-        if reload:
-            self.reload(force=True)

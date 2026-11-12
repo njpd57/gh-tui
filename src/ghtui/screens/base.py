@@ -111,6 +111,16 @@ class TablePane(Vertical):
         except Exception:
             return None
 
+    async def _act(self, coro, ok_msg: str, reload: bool = False) -> None:
+        try:
+            await coro
+            self.app.notify(ok_msg)
+        except gh.GhError as e:
+            self.app.notify(str(e), severity="error", timeout=10)
+            return
+        if reload:
+            self.reload(force=True)
+
     def start_filter(self) -> None:
         inp = self.query_one("#filter", Input)
         inp.add_class("-show")
