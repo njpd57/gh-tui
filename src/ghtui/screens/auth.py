@@ -17,7 +17,7 @@ class AuthPane(Vertical):
         yield Label("Cuenta de GitHub  —  [l] login · [o] logout · [r] refrescar", markup=False)
         yield Static("", id="auth-text", markup=False)
 
-    def reload(self) -> None:
+    def reload(self, force: bool = False) -> None:
         self.run_worker(self._load(), exclusive=True, group="auth")
 
     async def _load(self) -> None:

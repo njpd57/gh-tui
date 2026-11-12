@@ -31,7 +31,8 @@ async def test_bad_merge_method():
         await gh.pr_merge("o/r", 1, "yolo")
 
 
-async def test_app_navigation(monkeypatch):
+async def test_app_navigation(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
     async def repos(*a, **k):
         return [{"name": "r", "nameWithOwner": "o/r", "isPrivate": False, "updatedAt": "2026-01-01T00:00:00Z",
                  "primaryLanguage": None, "description": "d", "url": "u"}]
@@ -63,3 +64,17 @@ async def test_app_navigation(monkeypatch):
         assert app.sub_title == "o/r"
         await pilot.press("4")
         assert app.active == "runs"
+
+
+async def test_lists_have_no_small_limit(monkeypatch):
+    seen = []
+
+    async def fake(*a):
+        seen.append(a)
+        return []
+
+    monkeypatch.setattr(gh, "run_json", fake)
+    await gh.repo_list()
+    await gh.pr_list("o/r")
+    await gh.run_list("o/r")
+    assert all(str(gh.ALL) in a for a in seen) and gh.ALL >= 10_000

@@ -11,6 +11,9 @@ from .modals import InputModal
 class ReposPane(TablePane):
     COLUMNS = ("Repo", "Vis.", "Lenguaje", "Actualizado", "Descripción")
 
+    def cache_key(self) -> str | None:
+        return "repos"
+
     async def fetch(self) -> list[dict]:
         return await gh.repo_list()
 
@@ -43,7 +46,7 @@ class ReposPane(TablePane):
             self.app.notify(f"Clonado en {dest}")
         except gh.GhError as e:
             self.app.notify(str(e), severity="error", timeout=10)
-        self.set_status(f"{len(self.items)} elementos")
+        self.set_status(self._count_text())
 
     def open_browser(self) -> None:
         r = self.selected()

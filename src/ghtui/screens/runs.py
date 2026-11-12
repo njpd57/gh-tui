@@ -9,6 +9,9 @@ class RunsPane(TablePane):
     COLUMNS = ("ID", "", "Workflow", "Título", "Rama", "Evento", "Creado")
     repo: str | None = None
 
+    def cache_key(self) -> str | None:
+        return f"runs-{self.repo}" if self.repo else None
+
     async def fetch(self) -> list[dict]:
         if not self.repo:
             self.set_status("Selecciona un repo en la pestaña Repos (Enter)")
@@ -52,7 +55,7 @@ class RunsPane(TablePane):
             self.app.notify(str(e), severity="error", timeout=8)
             return
         finally:
-            self.set_status(f"{len(self.items)} elementos")
+            self.set_status(self._count_text())
         self.app.push_screen(TextViewer(f"run {rid}", text))
 
     def rerun(self) -> None:
@@ -70,6 +73,6 @@ class RunsPane(TablePane):
         try:
             await gh.run_rerun(repo, rid)
             self.app.notify(f"Run {rid} relanzado")
-            self.reload()
+            self.reload(force=True)
         except gh.GhError as e:
             self.app.notify(str(e), severity="error", timeout=8)

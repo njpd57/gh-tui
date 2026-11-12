@@ -61,10 +61,12 @@ async def auth_logout(host: str = "github.com") -> None:
 
 # ---- repos ----------------------------------------------------------------
 
+ALL = 100_000  # gh paginates internally up to --limit
+
 REPO_FIELDS = "name,nameWithOwner,description,isPrivate,updatedAt,primaryLanguage,url"
 
 
-async def repo_list(owner: str = "", limit: int = 100) -> list[dict]:
+async def repo_list(owner: str = "", limit: int = ALL) -> list[dict]:
     args = ["repo", "list"]
     if owner:
         args.append(owner)
@@ -89,8 +91,8 @@ async def current_repo() -> str | None:
 PR_FIELDS = "number,title,author,reviewDecision,statusCheckRollup,updatedAt,isDraft,headRefName"
 
 
-async def pr_list(repo: str, state: str = "open") -> list[dict]:
-    return await run_json("pr", "list", "-R", repo, "--state", state, "--limit", "50", "--json", PR_FIELDS)
+async def pr_list(repo: str, state: str = "open", limit: int = ALL) -> list[dict]:
+    return await run_json("pr", "list", "-R", repo, "--state", state, "--limit", str(limit), "--json", PR_FIELDS)
 
 
 async def pr_view(repo: str, number: int) -> str:
@@ -119,8 +121,8 @@ async def pr_merge(repo: str, number: int, method: str = "squash") -> str:
 RUN_FIELDS = "databaseId,displayTitle,status,conclusion,workflowName,headBranch,createdAt,event"
 
 
-async def run_list(repo: str) -> list[dict]:
-    return await run_json("run", "list", "-R", repo, "--limit", "30", "--json", RUN_FIELDS)
+async def run_list(repo: str, limit: int = ALL) -> list[dict]:
+    return await run_json("run", "list", "-R", repo, "--limit", str(limit), "--json", RUN_FIELDS)
 
 
 async def run_view(repo: str, run_id: int) -> str:

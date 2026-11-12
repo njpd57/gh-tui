@@ -9,6 +9,9 @@ class PRsPane(TablePane):
     COLUMNS = ("#", "CI", "Review", "Título", "Autor", "Rama", "Actualizado")
     repo: str | None = None
 
+    def cache_key(self) -> str | None:
+        return f"prs-{self.repo}" if self.repo else None
+
     async def fetch(self) -> list[dict]:
         if not self.repo:
             self.set_status("Selecciona un repo en la pestaña Repos (Enter)")
@@ -84,4 +87,4 @@ class PRsPane(TablePane):
             self.app.notify(str(e), severity="error", timeout=10)
             return
         if reload:
-            self.reload()
+            self.reload(force=True)

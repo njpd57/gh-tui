@@ -89,7 +89,7 @@ class GhTui(App):
         self.query_one(TabbedContent).active = name
 
     def action_refresh(self) -> None:
-        self.query_one(self._pane()).reload()
+        self.query_one(self._pane()).reload(force=True)
 
     def action_filter(self) -> None:
         if self.active != "auth":
